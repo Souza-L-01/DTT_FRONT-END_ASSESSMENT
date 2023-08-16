@@ -1,14 +1,129 @@
 import { createStore } from 'vuex';
+import axios from 'axios';
 
 export default createStore({
   state: {
+    houses: [],
   },
   getters: {
+    getBySearchText: (state) => (searchText) => {
+      const all = state.houses;
+      if (searchText.length > 0) {
+        return all.filter((house) => {
+          // eslint-disable-next-line no-multi-spaces
+          const houseSearchText =            +house.location.street
+            + house.price
+            + house.location.zip
+            + house.location.city
+            + house.size;
+          return houseSearchText
+            .toLowerCase()
+            .includes(searchText.toLowerCase());
+        });
+      }
+      return all;
+    },
+    getAll: (state) => () => state.houses,
   },
   mutations: {
+    setHouses(state, houses) {
+      state.houses = houses;
+      state.housesLoaded = true;
+    },
+    removeHouse(state, id) {
+      state.houses = state.houses.filter((h) => h.id !== id);
+    },
+    newHouse(state, house) {
+      state.houses = [house, ...state.houses];
+    },
   },
   actions: {
+    async initializeHouses(context) {
+      try {
+        const response = await axios.get('https://api.intern.d-tt.nl/api/houses', {
+          headers: {
+            'X-Api-Key': process.env.VUE_APP_API_KEY,
+          },
+        });
+        console.log('Loaded from remote');
+        context.commit('setHouses', response.data);
+        return 'OK';
+      } catch (error) {
+        const message = error.message ? error.message : JSON.stringify(error);
+        throw new Error(message); // show error msg on frontend
+      }
+    }    
+    },
+    deleteHouse(context, id) {
+      const config = {
+        method: 'delete',
+        url: `https://api.intern.d-tt.nl/api/houses/${id}`,
+        headers: {
+          'X-Api-Key': process.env.VUE_APP_API_KEY,
+        },
+      };
+
+      axios(config)
+        .then(() => {
+          context.commit('removeHouse', id);
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    },
+    addHouse(context, house) {
+      const data = new FormData();
+      data.append('price', house.price);
+      data.append('bedrooms', house.bedrooms);
+      data.append('bathrooms', house.bathrooms);
+      data.append('size', house.size);
+      data.append('streetName', house.streetName);
+      data.append('houseNumber', house.houseNumber);
+      data.append('numberAddition', house.numberAddition);
+      data.append('zip', house.zip);
+      data.append('city', house.city);
+      data.append('constructionYear', house.constructionYear);
+      data.append('hasGarage', house.hasGarage);
+      data.append('description', house.description);
+      const isUpdate = !!house.id;
+      if (isUpdate) {
+        data.append('id', house.id);
+      }
+      const targetUrl = isUpdate
+        ? `https://api.intern.d-tt.nl/api/houses/${house.id}`
+        : 'https://api.intern.d-tt.nl/api/houses';
+      return new Promise((resolve, reject) => {
+        axios
+          .post(targetUrl, data, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              'X-Api-Key': process.env.VUE_APP_API_KEY,
+            },
+          })
+          .then((response) => {
+            // Get the new house from response which contains id, madeByMe
+            const createdHouse = response.data;
+            if (isUpdate) {
+              if (response.status === 204) {
+                resolve(house.id);
+              } else {
+                reject(`Status: ${response.status}`);
+              }
+            } else if (createdHouse && createdHouse.id) {
+              console.log(createdHouse);
+              context.commit('newHouse', createdHouse);
+              resolve(createdHouse.id);
+            } else {
+              reject('Server did not return with success'); // show error msg on frontend
+            }
+          })
+          .catch((error) => {
+            console.log('error in creating house:', error);
+            const message = error.message ? error.message : JSON.stringify(error);
+            reject(message); // show error msg on frontend
+          });
+      });
+    },
   },
-  modules: {
-  },
+  modules: {},
 });

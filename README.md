@@ -27,3 +27,5 @@ yarn lint
 
 ### Customize configuration
 See [Configuration Reference](https://cli.vuejs.org/config/).
+
+API Key: ITtolpZYxNBe8jQch2J4fk7za0FKR9gO

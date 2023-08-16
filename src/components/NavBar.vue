@@ -26,12 +26,14 @@
   font-size: 1.2em;
   padding: 0% 15%;
   background-color: white;
+  height: 13vh;
 }
 
 img {
   height: 7em;
   width: 7em;
 }
+
 nav {
   padding: 20px;
 }
